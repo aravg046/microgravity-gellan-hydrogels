@@ -112,3 +112,13 @@ This approach will allow us to investigate spatial variations in calcium transpo
 The model will initially use a simplified two-dimensional representation of the cylindrical tube. It will not fully reproduce three-dimensional flow or all effects associated with the tube walls.
 
 The model will be developed in stages, beginning with diffusion and calcium binding, followed by gel-dependent transport and, where sufficient physical data are available, fluid flow under different gravity conditions.
+
+## Numerical method
+
+The computational model will use the Finite Element Method (FEM) to solve the governing equations in two spatial dimensions.
+
+FEM was selected because it provides flexibility when representing the tube geometry, applying boundary conditions and extending the model to include coupled transport processes.
+
+The initial implementation will use Python, with scikit-fem as the preferred FEM library. NumPy and SciPy will support numerical calculations, while Matplotlib will be used to visualise the results.
+
+The choice of library and solver will be tested through a small prototype before the complete model is developed.
