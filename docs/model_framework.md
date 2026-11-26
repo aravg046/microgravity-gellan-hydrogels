@@ -100,3 +100,15 @@ The model will also require literature-derived values for diffusion, gelation ki
 The purpose of this framework is to establish a physical basis for the simulation. Its assumptions will be revised as more reliable experimental data and literature become available.
 
 Ultimately, the model should help us investigate whether sequential calcium exposure can produce distinguishable spatial patterns of hydrogel formation under microgravity, and whether reduced buoyancy-driven transport contributes to those differences.
+
+
+
+## Computational dimensionality
+
+The investigation will use a two-dimensional computational model, with one coordinate representing the length of the tube and the other representing its vertical cross-sectional direction.
+
+This approach will allow us to investigate spatial variations in calcium transport and gel formation, while also considering the influence of gravity on fluid movement.
+
+The model will initially use a simplified two-dimensional representation of the cylindrical tube. It will not fully reproduce three-dimensional flow or all effects associated with the tube walls.
+
+The model will be developed in stages, beginning with diffusion and calcium binding, followed by gel-dependent transport and, where sufficient physical data are available, fluid flow under different gravity conditions.
