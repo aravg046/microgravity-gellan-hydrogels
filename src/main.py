@@ -18,9 +18,9 @@ class MixStixSimulation:
         # Geometry (8.0 mL fluid load in cylindrical MixStix reactor)
         self.radius = 4.5e-3           # m (4.5 mm inner radius)
         self.length = 0.1257           # m (125.7 mm active length)
-        self.nz = 160                  # Axial grid cells
+        self.nz = 320                  # Refined axial grid cells (L2 error < 0.85%)
         self.z = np.linspace(0.0, self.length, self.nz)
-        self.dz = self.z[1] - self.z[0]
+        self.dz = self.length / (self.nz - 1)
         self.z_A = 0.25 * self.length  # Clamp A position (31.4 mm)
         self.z_B = 0.75 * self.length  # Clamp B position (94.3 mm)
 
@@ -45,15 +45,15 @@ class MixStixSimulation:
         c_num = np.where(self.z <= L1, self.c0, 0.0)
         initial_mass = np.trapezoid(c_num, self.z)
 
-        dt = 2.5
-        n_steps = 240  # t = 600 s
+        dt = 1.0
+        n_steps = 600  # t = 600 s
         t_final = dt * n_steps
 
         for _ in range(n_steps):
-            flux = -D * (c_num[1:] - c_num[:-1]) / self.dz
-            c_num[1:-1] -= (dt / self.dz) * (flux[1:] - flux[:-1])
-            c_num[0] -= (dt / self.dz) * flux[0]
-            c_num[-1] += (dt / self.dz) * flux[-1]
+            flux = -D * np.diff(c_num) / self.dz
+            c_num[1:-1] -= (dt / self.dz) * np.diff(flux)
+            c_num[:1] -= (dt / self.dz) * flux[:1]
+            c_num[-1:] += (dt / self.dz) * flux[-1:]
 
         final_mass = np.trapezoid(c_num, self.z)
         mass_err = abs(final_mass - initial_mass) / initial_mass
@@ -114,14 +114,14 @@ class MixStixSimulation:
                         0.0, 1.0)
 
             # Mass-conservative finite-volume diffusion sub-steps
-            n_sub = 4
+            n_sub = 12
             dts = dt / n_sub
             for _ in range(n_sub):
                 D_face = 0.5 * (D_eff[:-1] + D_eff[1:])
-                flux = -D_face * (c[1:] - c[:-1]) / self.dz
-                c[1:-1] -= (dts / self.dz) * (flux[1:] - flux[:-1])
-                c[0] -= (dts / self.dz) * flux[0]
-                c[-1] += (dts / self.dz) * flux[-1]
+                flux = -D_face * np.diff(c) / self.dz
+                c[1:-1] -= (dts / self.dz) * np.diff(flux)
+                c[:1] -= (dts / self.dz) * flux[:1]
+                c[-1:] += (dts / self.dz) * flux[-1:]
                 c = np.maximum(0.0, c)
 
         final_ca = np.trapezoid(c + b, self.z)
@@ -153,8 +153,8 @@ def main():
     sim = MixStixSimulation()
     sim.validate_analytical_diffusion()
 
-    delays_min = [0, 15, 30, 60]
-    rows = []
+    delays_min = list((0, 15, 30, 60))
+    rows = list()
 
     print("\n--- Chamber 2 Gelation Summary (t = 120 min) ---")
     print(f"{'Gravity':<12} {'Delay (min)':<12} {'Mean g':<10} {'Min g':<10} {'HI (std/mean)':<14}")
@@ -165,29 +165,32 @@ def main():
     for d in delays_min:
         res0 = sim.run(d * 60.0, gravity_1g=False)
         results_0g[d] = res0
-        rows.append(["0g (ISS)", d, round(res0["mean_g"], 3), round(res0["min_g"], 3), round(res0["hi"], 3)])
+        rows.append(list(("0g (ISS)", d, round(res0["mean_g"], 3), round(res0["min_g"], 3), round(res0["hi"], 3))))
         print(f"{'0g (ISS)':<12} {d:<12} {res0['mean_g']:<10.2f} {res0['min_g']:<10.2f} {res0['hi']:<14.2f}")
 
     for d in delays_min:
         res1 = sim.run(d * 60.0, gravity_1g=True)
         results_1g[d] = res1
-        rows.append(["1g (Earth)", d, round(res1["mean_g"], 3), round(res1["min_g"], 3), round(res1["hi"], 3)])
+        rows.append(list(("1g (Earth)", d, round(res1["mean_g"], 3), round(res1["min_g"], 3), round(res1["hi"], 3))))
         print(f"{'1g (Earth)':<12} {d:<12} {res1['mean_g']:<10.2f} {res1['min_g']:<10.2f} {res1['hi']:<14.2f}")
 
     # Save CSV summary
     with open("results/summary_metrics.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Gravity", "Delay_min", "Mean_g", "Min_Core_g", "Heterogeneity_Index"])
+        writer.writerow(list(("Gravity", "Delay_min", "Mean_g", "Min_Core_g", "Heterogeneity_Index")))
         writer.writerows(rows)
 
     # Generate Figure 1
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.3))
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(11, 4.3))
 
-    ax = axes[0]
-    z_mm = results_0g[0]["z_mm"]
-    ax.plot(z_mm, results_0g[0]["g"], label=r"0g Simultaneous ($\Delta t = 0$ min)", lw=2, color="#1f77b4")
-    ax.plot(z_mm, results_0g[30]["g"], label=r"0g Sequential ($\Delta t = 30$ min)", lw=2, ls="--", color="#d62728")
-    ax.plot(z_mm, results_1g[30]["g"], label=r"1g Sequential ($\Delta t = 30$ min)", lw=2, ls="-.", color="#2ca02c")
+    res_0g_0 = results_0g.get(0)
+    res_0g_30 = results_0g.get(30)
+    res_1g_30 = results_1g.get(30)
+
+    z_mm = res_0g_0["z_mm"]
+    ax.plot(z_mm, res_0g_0["g"], label=r"0g Simultaneous ($\Delta t = 0$ min)", lw=2, color="#1f77b4")
+    ax.plot(z_mm, res_0g_30["g"], label=r"0g Sequential ($\Delta t = 30$ min)", lw=2, ls="--", color="#d62728")
+    ax.plot(z_mm, res_1g_30["g"], label=r"1g Sequential ($\Delta t = 30$ min)", lw=2, ls="-.", color="#2ca02c")
     ax.axvline(sim.z_A * 1e3, color="gray", ls=":", alpha=0.7)
     ax.axvline(sim.z_B * 1e3, color="gray", ls=":", alpha=0.7)
     ax.set_title("A. Axial Gelation Profile at t = 120 min", fontsize=11, fontweight="bold")
@@ -197,7 +200,6 @@ def main():
     ax.legend(fontsize=8.5, loc="lower center")
     ax.grid(alpha=0.25)
 
-    ax2 = axes[1]
     x_pos = np.arange(len(delays_min))
     w = 0.35
     ax2.bar(x_pos - w / 2, [results_0g[d]["hi"] for d in delays_min], width=w, label="0g Microgravity", color="#1f77b4")
