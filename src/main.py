@@ -18,9 +18,9 @@ class MixStixSimulation:
         # Geometry (8.0 mL fluid load in cylindrical MixStix reactor)
         self.radius = 4.5e-3           # m (4.5 mm inner radius)
         self.length = 0.1257           # m (125.7 mm active length)
-        self.nz = 320                  # Refined axial grid cells (L2 error < 0.85%)
-        self.z = np.linspace(0.0, self.length, self.nz)
-        self.dz = self.length / (self.nz - 1)
+        self.nz = 320                  # Cell-centered axial grid cells
+        self.dz = self.length / self.nz
+        self.z = (np.arange(self.nz) + 0.5) * self.dz
         self.z_A = 0.25 * self.length  # Clamp A position (31.4 mm)
         self.z_B = 0.75 * self.length  # Clamp B position (94.3 mm)
 
@@ -43,7 +43,7 @@ class MixStixSimulation:
         L1 = 0.25 * L
         D = self.D0
         c_num = np.where(self.z <= L1, self.c0, 0.0)
-        initial_mass = np.trapezoid(c_num, self.z)
+        initial_mass = np.sum(c_num) * self.dz
 
         dt = 1.0
         n_steps = 600  # t = 600 s
@@ -52,10 +52,10 @@ class MixStixSimulation:
         for _ in range(n_steps):
             flux = -D * np.diff(c_num) / self.dz
             c_num[1:-1] -= (dt / self.dz) * np.diff(flux)
-            c_num[:1] -= (dt / self.dz) * flux[:1]
-            c_num[-1:] += (dt / self.dz) * flux[-1:]
+            c_num[0] -= (dt / self.dz) * flux[0]
+            c_num[-1] += (dt / self.dz) * flux[-1]
 
-        final_mass = np.trapezoid(c_num, self.z)
+        final_mass = np.sum(c_num) * self.dz
         mass_err = abs(final_mass - initial_mass) / initial_mass
 
         c_exact = np.full_like(self.z, self.c0 * (L1 / L))
@@ -82,7 +82,7 @@ class MixStixSimulation:
         g = np.zeros_like(c)
         b_max = 0.5 * (p / self.mw_rep)
 
-        initial_ca = np.trapezoid(c + b, self.z)
+        initial_ca = np.sum(c + b) * self.dz
         n_steps = int(t_end / dt)
 
         for step in range(1, n_steps + 1):
@@ -120,11 +120,11 @@ class MixStixSimulation:
                 D_face = 0.5 * (D_eff[:-1] + D_eff[1:])
                 flux = -D_face * np.diff(c) / self.dz
                 c[1:-1] -= (dts / self.dz) * np.diff(flux)
-                c[:1] -= (dts / self.dz) * flux[:1]
-                c[-1:] += (dts / self.dz) * flux[-1:]
+                c[0] -= (dts / self.dz) * flux[0]
+                c[-1] += (dts / self.dz) * flux[-1]
                 c = np.maximum(0.0, c)
 
-        final_ca = np.trapezoid(c + b, self.z)
+        final_ca = np.sum(c + b) * self.dz
         drift = abs(final_ca - initial_ca) / initial_ca
         assert drift < 1e-12, f"Calcium conservation drift too high: {drift}"
 
@@ -132,7 +132,7 @@ class MixStixSimulation:
         ch2 = (self.z >= self.z_A) & (self.z <= self.z_B)
         g_ch2 = g[ch2]
         mean_g = float(np.mean(g_ch2))
-        min_g = float(np.min(g_ch2))
+        pen_mm = float(np.sum(g_ch2 >= 0.5) * self.dz * 1e3)
         hi = float(np.std(g_ch2) / (mean_g + 1e-9))
 
         return {
@@ -141,7 +141,7 @@ class MixStixSimulation:
             "b": b,
             "g": g,
             "mean_g": mean_g,
-            "min_g": min_g,
+            "pen_mm": pen_mm,
             "hi": hi,
         }
 
@@ -157,7 +157,7 @@ def main():
     rows = list()
 
     print("\n--- Chamber 2 Gelation Summary (t = 120 min) ---")
-    print(f"{'Gravity':<12} {'Delay (min)':<12} {'Mean g':<10} {'Min g':<10} {'HI (std/mean)':<14}")
+    print(f"{'Gravity':<12} {'Delay (min)':<12} {'Mean g':<10} {'Shell (mm)':<12} {'HI (std/mean)':<14}")
 
     results_0g = {}
     results_1g = {}
@@ -165,19 +165,19 @@ def main():
     for d in delays_min:
         res0 = sim.run(d * 60.0, gravity_1g=False)
         results_0g[d] = res0
-        rows.append(list(("0g (ISS)", d, round(res0["mean_g"], 3), round(res0["min_g"], 3), round(res0["hi"], 3))))
-        print(f"{'0g (ISS)':<12} {d:<12} {res0['mean_g']:<10.2f} {res0['min_g']:<10.2f} {res0['hi']:<14.2f}")
+        rows.append(list(("0g (ISS)", d, round(res0["mean_g"], 3), round(res0["pen_mm"], 2), round(res0["hi"], 2))))
+        print(f"{'0g (ISS)':<12} {d:<12} {res0['mean_g']:<10.3f} {res0['pen_mm']:<12.2f} {res0['hi']:<14.2f}")
 
     for d in delays_min:
         res1 = sim.run(d * 60.0, gravity_1g=True)
         results_1g[d] = res1
-        rows.append(list(("1g (Earth)", d, round(res1["mean_g"], 3), round(res1["min_g"], 3), round(res1["hi"], 3))))
-        print(f"{'1g (Earth)':<12} {d:<12} {res1['mean_g']:<10.2f} {res1['min_g']:<10.2f} {res1['hi']:<14.2f}")
+        rows.append(list(("1g (Earth)", d, round(res1["mean_g"], 3), round(res1["pen_mm"], 2), round(res1["hi"], 2))))
+        print(f"{'1g (Earth)':<12} {d:<12} {res1['mean_g']:<10.3f} {res1['pen_mm']:<12.2f} {res1['hi']:<14.2f}")
 
     # Save CSV summary
     with open("results/summary_metrics.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(list(("Gravity", "Delay_min", "Mean_g", "Min_Core_g", "Heterogeneity_Index")))
+        writer.writerow(list(("Gravity", "Delay_min", "Mean_g", "Gel_Shell_mm", "Heterogeneity_Index")))
         writer.writerows(rows)
 
     # Generate Figure 1
@@ -197,7 +197,7 @@ def main():
     ax.set_xlabel("Axial Position z (mm)")
     ax.set_ylabel("Degree of Gelation g (-)")
     ax.set_ylim(-0.05, 1.08)
-    ax.legend(fontsize=8.5, loc="lower center")
+    ax.legend(fontsize=8.5, loc="upper center")
     ax.grid(alpha=0.25)
 
     x_pos = np.arange(len(delays_min))
