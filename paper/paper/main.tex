@@ -1,0 +1,228 @@
+\documentclass[11pt,twocolumn]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{float}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    citecolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\title{\textbf{Computational Modeling of Sequentially Triggered Low-Acyl Gellan Gum Hydrogel Formation in Microgravity vs. Terrestrial Gravity}}
+
+\author{
+    Arav Gupta\textsuperscript{1,*} \and Keshav Singh\textsuperscript{1} \\
+    \small \textsuperscript{1}HydroNexus Research Group \\
+    \small \textsuperscript{*}Corresponding author; Code Repository: \url{https://github.com  /aravg046/microgravity-gellan-hydrogels}
+}
+
+\date{November 2026}
+
+\begin{document}
+
+\twocolumn[
+  \begin{@twocolumnfalse}
+    \maketitle
+    \begin{abstract}
+      \noindent Ionically crosslinked polysaccharide hydrogels are promising scaffolds for bioprinting and tissue engineering aboard the International Space Station (ISS), yet how altered gravity governs their internal microstructure during multi-step mixing remains poorly quantified. Here, we develop a coupled reaction--diffusion--gelation model to simulate sequentially triggered gelation of low-acyl gellan gum ($0.60\%\text{ w/v}$, $4\text{ mL}$) exposed to two flanking doses of aqueous $\text{CaCl}_2$ ($10\text{ mM}$, $2\text{ mL}$ each) inside a three-chamber MixStix flight tube. Stoichiometric evaluation against experimental rheometry reveals that a single $20\text{ }\mu\text{mol}$ $\text{Ca}^{2+}$ dose supplies $0.0334\text{ g Ca}^{2+}/\text{g gellan}$---roughly $18.5\times$ the critical gelation threshold ($0.0018\text{ g/g}$)---shifting the physical role of sequential clamp release ($\Delta t \in \{0, 15, 30, 60\}\text{ min}$) from bulk gelation initiation to spatial core--shell architecture control. Across a $120\text{ min}$ reaction window under microgravity ($0g$), increasing $\Delta t$ from $0\text{ min}$ (simultaneous release) to $60\text{ min}$ (sequential release) increases the axial gelation heterogeneity index ($\sigma_g / \bar{g}$) from $2.05$ to $2.46$ while reducing total crosslinked shell thickness ($g \ge 0.5$) from $11.39\text{ mm}$ to $8.25\text{ mm}$ due to early formation of a diffusive gel barrier at the first-opened clamp interface. Conversely, under terrestrial gravity ($1g$), the positive density difference between the gellan sol ($999.40\text{ kg/m}^3$) and the $\text{CaCl}_2$ solution ($997.98\text{ kg/m}^3$) drives viscosity-damped buoyant overturning at the lower clamp interface, expanding shell thickness at $\Delta t = 30\text{ min}$ from $9.82\text{ mm}$ ($0g$) to $18.46\text{ mm}$ ($1g$) and reducing spatial heterogeneity from $2.23$ to $1.50$. These findings establish quantitative pre-flight design rules for tuning hydrogel uniformity and spatial gradients in microgravity hardware without mechanical agitation.
+      \vspace{1em}
+    \end{abstract}
+  \end{@twocolumnfalse}
+]
+
+\section{Introduction}
+Hydrogels formed by ionic crosslinking of anionic biopolymers---such as alginate and low-acyl gellan gum---are widely utilized in regenerative medicine, drug delivery, and spaceflight biomanufacturing \cite{ambebila2019,mammarella2003}. On the International Space Station (ISS), fluid mixing and chemical synthesis frequently rely on compartmentalized flexible reaction tubes, such as the Voyager Space MixStix hardware \cite{voyager2026}, in which isolated reagent chambers are separated by external pinch clamps. When crew intervention is limited to sequential clamp removal without vigorous manual shaking, reagent transport is governed by molecular diffusion, reaction-induced viscosity growth, and---on Earth---buoyancy-driven natural convection.
+
+Low-acyl gellan gum is a linear anionic tetrasaccharide exopolysaccharide containing one glucuronate carboxylate group ($\text{-COO}^-$) per repeat unit ($\text{MW} \approx 646\text{ g/mol}$) \cite{ambebila2019}. In the presence of divalent cations such as $\text{Ca}^{2+}$, gellan double helices undergo rapid electrostatic ion-pair association followed by slower aggregation into three-dimensional junction zones \cite{perezcampos2012}. Importantly, Ambebila et al. \cite{ambebila2019} demonstrated that $0.60\%\text{ w/v}$ low-acyl gellan transitions from a viscous sol ($\mu_0 \approx 0.20\text{ Pa}\cdot\text{s}$) to a self-supporting gel at a remarkably low mass ratio of $\chi_{\text{gel}} \approx 0.0018\text{ g Ca}^{2+}/\text{g gellan}$, and that the resulting gel continues stiffening over several hours as free $\text{Ca}^{2+}$ diffuses across the newly formed interfacial gel shell.
+
+In this study, we model a three-chamber MixStix configuration containing a central $4\text{ mL}$ stock of $0.60\%\text{ w/v}$ low-acyl gellan flanked by two $2\text{ mL}$ chambers of $10\text{ mM CaCl}_2$. A key stoichiometric finding of our parameterization is that even a single $2\text{ mL}$ chamber delivers $20\text{ }\mu\text{mol}$ of $\text{Ca}^{2+}$ ($0.802\text{ mg}$), corresponding to $0.0334\text{ g Ca}^{2+}/\text{g gellan}$---approximately $18.5\times$ the critical gelation threshold (and $37.1\times$ across both doses). Consequently, sequential clamp actuation does not determine \emph{whether} bulk gelation occurs; rather, it governs \emph{where} crosslinking concentrates and how strongly an early interfacial gel barrier restricts subsequent ion penetration. By comparing microgravity ($0g$) against a vertical terrestrial control ($1g$), we isolate the role of solutal buoyancy in shaping internal gel heterogeneity.
+
+\section{Physical System and Parameterization}
+The computational domain represents an $8.0\text{ mL}$ aqueous fluid load inside a cylindrical MixStix reactor of inner radius $R = 4.5\text{ mm}$ and total active length $L = 125.7\text{ mm}$ ($V_{\text{total}} = \pi R^2 L$). The axial domain $z \in [0, L]$ is partitioned into three chambers separated by Clamp A ($z_A = 0.25L = 31.4\text{ mm}$) and Clamp B ($z_B = 0.75L = 94.3\text{ mm}$):
+\begin{itemize}
+    \item \textbf{Chamber 1 ($z \in [0, z_A]$, $2.0\text{ mL}$):} $10.0\text{ mM CaCl}_2$ ($c_0 = 10.0\text{ mol/m}^3$).
+    \item \textbf{Chamber 2 ($z \in [z_A, z_B]$, $4.0\text{ mL}$):} $0.60\%\text{ w/v}$ low-acyl gellan gum ($p_0 = 6.0\text{ kg/m}^3$).
+    \item \textbf{Chamber 3 ($z \in [z_B, L]$, $2.0\text{ mL}$):} $10.0\text{ mM CaCl}_2$ ($c_0 = 10.0\text{ mol/m}^3$).
+\end{itemize}
+At $t = 0$, Clamp A is released while Clamp B remains sealed until a prescribed delay time $t = \Delta t \in \{0, 15, 30, 60\}\text{ min}$. The total simulated reaction horizon is $t_{\text{end}} = 120\text{ min}$ at an isothermal ISS cabin temperature of $T = 298.15\text{ K}$ ($25^\circ\text{C}$). Because low-acyl gellan requires elevated temperatures ($\sim 50^\circ\text{C}$) for initial dissolution \cite{ambebila2019}, we assume pre-hydrated, ion-free stock is stowed at $+4^\circ\text{C}$ prior to launch \cite{voyager2026} and thermally equilibrated to $25^\circ\text{C}$ immediately before clamp actuation.
+
+\begin{table*}[t]
+\centering
+\caption{Physical, Transport, and Kinetic Parameters at $T = 25^\circ\text{C}$ ($298.15\text{ K}$).}
+\label{tab:params}
+\begin{tabularx}{\textwidth}{@{}l l l l X@{}}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} & \textbf{Status} & \textbf{Source / Derivation} \\
+\midrule
+Total fluid volume & $V_{\text{total}}$ & $8.0 \times 10^{-6}\text{ m}^3$ & Protocol & $2\text{ mL} + 4\text{ mL} + 2\text{ mL}$ MixStix load \\
+Tube inner radius & $R$ & $4.5 \times 10^{-3}\text{ m}$ & Provisional & Voyager MixStix $10\text{ mL}$ tube geometry \cite{voyager2026} \\
+Active tube length & $L$ & $0.1257\text{ m}$ & Derived & $L = V_{\text{total}} / (\pi R^2)$ \\
+Initial $\text{CaCl}_2$ conc. & $c_0$ & $10.0\text{ mol/m}^3$ & Protocol & $20\text{ }\mu\text{mol Ca}^{2+}$ per outer chamber \\
+Initial gellan conc. & $p_0$ & $6.0\text{ kg/m}^3$ & Protocol & $0.60\%\text{ w/v}$ ($24\text{ mg}$ polymer in Chamber 2) \\
+Free $\text{Ca}^{2+}$ self-diffusivity & $D_{\text{Ca}^{2+}}^0$ & $0.792 \times 10^{-9}\text{ m}^2/\text{s}$ & Established & CRC Handbook \cite{haynes2012}; Li \& Gregory \cite{ligregory1974} \\
+Free $\text{Cl}^-$ self-diffusivity & $D_{\text{Cl}^-}^0$ & $2.032 \times 10^{-9}\text{ m}^2/\text{s}$ & Established & CRC Handbook \cite{haynes2012} \\
+Binary $\text{CaCl}_2$ diffusivity & $D_{\text{CaCl}_2}^0$ & $1.335 \times 10^{-9}\text{ m}^2/\text{s}$ & Calculated & Nernst--Hartley infinite-dilution relation \\
+Gel-hindered diffusivity factor & $\alpha_{\text{gel}}$ & $0.70$ & Literature & $60\text{--}85\%$ reduction in dense gel \cite{mammarella2003} \\
+Gel-point mass ratio & $\chi_{\text{gel}}$ & $0.0018\text{ g/g}$ & Measured & Ambebila et al. ($0.0015\text{--}0.0020\text{ g/g}$) \cite{ambebila2019} \\
+Low-shear sol viscosity & $\mu_0$ & $0.20\text{ Pa}\cdot\text{s}$ & Measured & Ambebila et al. at $0.113\text{ s}^{-1}$ \cite{ambebila2019} \\
+Density ($10\text{ mM CaCl}_2$) & $\rho_{\text{CaCl}_2}$ & $997.98\text{ kg/m}^3$ & Calculated & Apparent molar volume $V_\phi^0 \approx 17.8\text{ cm}^3/\text{mol}$ \\
+Density ($0.60\%$ gellan) & $\rho_{\text{gellan}}$ & $999.40\text{ kg/m}^3$ & Calculated & Polysaccharide $\bar{v}_p \approx 0.61\text{ cm}^3/\text{g}$ \\
+ISS residual acceleration & $g_{\text{ISS}}$ & $\sim 10^{-6}\,g_0$ & Established & NASA microgravity baseline \cite{nasa2024} \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+Table~\ref{tab:params} summarizes the model parameters. In binary aqueous $\text{CaCl}_2$, electroneutrality couples $\text{Ca}^{2+}$ to faster $\text{Cl}^-$ co-ions, yielding a Nernst--Hartley diffusivity of $D_{\text{CaCl}_2}^0 = 1.335 \times 10^{-9}\text{ m}^2/\text{s}$. Inside the crosslinked polyanionic network, fixed carboxylate charges screen co-ion coupling and tortuosity reduces transport by $60\text{--}85\%$ \cite{mammarella2003}. Furthermore, density evaluation at $25^\circ\text{C}$ reveals that the $0.60\%\text{ w/v}$ gellan sol ($\rho_{\text{gellan}} = 999.40\text{ kg/m}^3$) is denser than the $10\text{ mM CaCl}_2$ solution ($\rho_{\text{CaCl}_2} = 997.98\text{ kg/m}^3$) by $\Delta\rho = 1.42\text{ kg/m}^3$.
+
+\section{Mathematical Formulation}
+We track four coupled field variables along the reactor axis: free molar $\text{Ca}^{2+}$ concentration $c(z,t)$ ($\text{mol/m}^3$), polymer-bound $\text{Ca}^{2+}$ concentration $b(z,t)$ ($\text{mol/m}^3$), immobile gellan concentration $p(z)$ ($\text{kg/m}^3$), and the dimensionless degree of crosslinked gelation $g(z,t)$ bounded between $0$ and $1$.
+
+\subsection{Coupled Transport and Saturable Gelation}
+Free calcium conservation is governed by
+\begin{equation}
+\frac{\partial c}{\partial t} = \frac{\partial}{\partial z}\left(D_{\text{eff}}(z, t, g)\frac{\partial c}{\partial z}\right) - R_{\text{bind}}(c, p, b),
+\label{eq:ca_transport}
+\end{equation}
+where $D_{\text{eff}}$ accounts for network obstruction and closed-clamp isolation:
+\begin{equation}
+D_{\text{eff}}(z, t, g) = \mathcal{H}_{\text{clamp}}(z, t)\Big(D_{\text{CaCl}_2}^0 (1 - \alpha_{\text{gel}} g) + D_{\text{buoy}}(z, g)\Big).
+\label{eq:deff}
+\end{equation}
+Here, $\mathcal{H}_{\text{clamp}}(z, t) = 0$ across a narrow barrier at $z = z_B$ for $t < \Delta t$ and equals unity once Clamp B opens.
+
+Because Dose 1 supplies an $18.5\times$ stoichiometric excess of $\text{Ca}^{2+}$, ionic binding must enforce local site saturation at the divalent carboxylate bridge capacity $b_{\max}(p) = \frac{1}{2}(p / \text{MW}_{\text{repeat}}) \approx 4.64\text{ mol/m}^3$:
+\begin{equation}
+R_{\text{bind}} = \frac{\partial b}{\partial t} = k_{\text{on}}\, c\, \max\big(0, b_{\max}(p) - b\big),
+\label{eq:binding}
+\end{equation}
+with $k_{\text{on}} = 0.04\text{ m}^3/(\text{mol}\cdot\text{s})$. Gel network formation initiates once the local bound mass ratio $\chi(z,t) = M_{\text{Ca}} b / p$ exceeds the experimental threshold $\chi_{\text{gel}} = 0.0018\text{ g/g}$ \cite{ambebila2019}:
+\begin{equation}
+\frac{\partial g}{\partial t} = k_{\text{gel}}\, \max\big(0, \chi(z,t) - \chi_{\text{gel}}\big)(1 - g),
+\label{eq:gelation}
+\end{equation}
+where $k_{\text{gel}} = 0.008\text{ s}^{-1}$ captures cooperative helix aggregation over multi-minute timescales.
+
+\subsection{Gravitational Coupling ($0g$ vs. $1g$)}
+In microgravity ($g_{\text{ISS}} \approx 10^{-6}\,g_0$), the solutal Rayleigh number $\text{Ra}_s = \Delta\rho\, g_{\text{ISS}}\, R^3 / (\mu_0 D_0)$ is suppressed by six orders of magnitude, rendering convective dispersion negligible ($D_{\text{buoy}} = 0$). In a vertically oriented $1g$ Earth control ($\mathbf{g} = -g_0\hat{\mathbf{z}}$), the denser gellan sol sits stably above the lighter $\text{CaCl}_2$ solution at upper Clamp A ($\text{Ra}_s < 0$), but is buoyantly unstable above lower Clamp B ($\text{Ra}_s > 0$). Because gellan's sol viscosity ($\mu_0 = 0.20\text{ Pa}\cdot\text{s}$) is $\sim 200\times$ higher than water, convective overturning at Clamp B manifests as a viscosity-damped Taylor--Aris dispersion plume $D_{\text{buoy}}(z, g)$ localized near $z_B$ that vanishes as $(1 - g)^2$ once gelation arrests fluid shear.
+
+\subsection{Initial and Boundary Conditions}
+At $t = 0$, zero-flux Neumann conditions ($\partial c / \partial z = 0$) are enforced at the sealed tube ends $z = 0$ and $z = L$. To prevent numerical Gibbs oscillations across step discontinuities, initial concentration profiles are smoothed over a narrow interface width $\delta = 2\Delta z$:
+\begin{align}
+c(z, 0) &= \frac{c_0}{2}\left(1 - \tanh\left(\frac{z - z_A}{\delta}\right)\right) + \frac{c_0}{2}\left(1 + \tanh\left(\frac{z - z_B}{\delta}\right)\right), \\
+p(z) &= \frac{p_0}{2}\left(\tanh\left(\frac{z - z_A}{\delta}\right) - \tanh\left(\frac{z - z_B}{\delta}\right)\right),
+\end{align}
+with $b(z,0) = 0$ and $g(z,0) = 0$.
+
+\section{Numerical Methods and Verification}
+Equations~\eqref{eq:ca_transport}--\eqref{eq:gelation} were discretized on a cell-centered uniform axial grid ($N_z = 320$, $\Delta z = 0.393\text{ mm}$) using a mass-conservative finite-volume flux scheme paired with positivity-preserving reaction splitting ($\Delta t_{\text{step}} = 10\text{ s}$, sub-stepped at $0.833\text{ s}$ for diffusive stability).
+
+Prior to enabling reactive binding, the transport solver was verified against the exact analytical Fourier cosine series for pure diffusion of a finite step $c(z,0) = c_0$ on $0 \le z \le 0.25L$ inside an insulated domain $0 \le z \le L$:
+\begin{equation}
+c_{\text{exact}}(z, t) = \frac{c_0}{4} + \sum_{n=1}^{\infty} \frac{2 c_0}{n\pi}\sin\left(\frac{n\pi}{4}\right)\cos\left(\frac{n\pi z}{L}\right)e^{-D_0 (n\pi/L)^2 t}.
+\end{equation}
+At $t = 600\text{ s}$, the numerical solution matched the 200-term analytical series within a relative $L_2$ error of $0.084\%$ ($8.41 \times 10^{-4}$), while total system calcium $\int_0^L (c(z,t) + b(z,t))\,dz$ was conserved to machine precision ($< 10^{-15}$ relative drift) across all coupled simulations.
+
+\section{Results and Discussion}
+To quantify structural uniformity within the hydrogel scaffold (Chamber 2, $z_A \le z \le z_B$, length $L_2 = 62.85\text{ mm}$) at $t = 120\text{ min}$, we evaluate the spatial mean gel fraction $\bar{g}$, the total crosslinked gel shell thickness $L_{\text{shell}}$ (defined by $g(z) \ge 0.50$), and the dimensionless spatial heterogeneity index $\text{HI} = \sigma_g / \bar{g}$.
+
+\IfFileExists{fig1_gelation.png}{
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig1_gelation.png}
+\caption{\textbf{A.} Axial degree of gelation $g(z)$ at $t = 120\text{ min}$ comparing simultaneous ($\Delta t = 0\text{ min}$) and sequential ($\Delta t = 30\text{ min}$) release in $0g$ microgravity against the $1g$ vertical Earth control. Vertical dotted lines mark Clamp A ($z_A = 31.4\text{ mm}$) and Clamp B ($z_B = 94.3\text{ mm}$). \textbf{B.} Spatial heterogeneity index ($\text{HI} = \sigma_g / \bar{g}$) across Chamber 2 as a function of Clamp B release delay $\Delta t$.}
+\label{fig:results}
+\end{figure*}
+}{}
+
+\begin{table}[h]
+\centering
+\caption{Chamber 2 Gelation Metrics at $t = 120\text{ min}$.}
+\label{tab:results}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}l c c c c@{}}
+\toprule
+\textbf{Gravity} & $\Delta t$ \textbf{(min)} & $\bar{g}$ & $L_{\text{shell}}$ \textbf{(mm)} & \textbf{HI ($\sigma_g / \bar{g}$)} \\
+\midrule
+$0g$ (ISS) & $0$ & $0.175$ & $11.39$ & $2.05$ \\
+$0g$ (ISS) & $15$ & $0.163$ & $10.61$ & $2.14$ \\
+$0g$ (ISS) & $30$ & $0.150$ & $9.82$ & $2.23$ \\
+$0g$ (ISS) & $60$ & $0.123$ & $8.25$ & $2.46$ \\
+\midrule
+$1g$ (Earth) & $0$ & $0.335$ & $21.21$ & $1.37$ \\
+$1g$ (Earth) & $15$ & $0.312$ & $20.03$ & $1.43$ \\
+$1g$ (Earth) & $30$ & $0.289$ & $18.46$ & $1.50$ \\
+$1g$ (Earth) & $60$ & $0.237$ & $14.93$ & $1.68$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+
+\subsection{Core--Shell Asymmetry in Microgravity ($0g$)}
+As shown in Table~\ref{tab:results}, even when both clamps open simultaneously ($\Delta t = 0\text{ min}$) in microgravity, pure diffusion over $120\text{ min}$ yields a pronounced core--shell architecture ($\bar{g} = 0.175$, $L_{\text{shell}} = 11.39\text{ mm}$, $\text{HI} = 2.05$). Because the characteristic diffusive timescale across half of Chamber 2 is $\tau_{\text{diff}} = (L_2 / 2)^2 / D_0 \approx 7.4 \times 10^5\text{ s}$ ($\sim 205\text{ hours}$), rapid calcium consumption and $70\%$ diffusivity suppression at the chamber interfaces localize crosslinking within $\sim 5.7\text{ mm}$ shells adjacent to $z_A$ and $z_B$, leaving an uncrosslinked core ($g \approx 0$).
+
+When Clamp B release is delayed by $\Delta t = 30\text{ min}$ or $60\text{ min}$, axial symmetry is broken. Dose 1 forms a thick, highly crosslinked front propagating inward from Clamp A while the right half of Chamber 2 remains ungelled. Upon opening Clamp B, Dose 2 encounters a shorter remaining diffusion window and gels a thinner boundary layer at $z_B$, reducing total crosslinked thickness to $8.25\text{ mm}$ at $\Delta t = 60\text{ min}$ and raising spatial heterogeneity to $\text{HI} = 2.46$.
+
+\subsection{Buoyancy-Driven Homogenization in $1g$}
+In the $1g$ vertical Earth control, buoyant instability at the lower Clamp B interface accelerates $\text{Ca}^{2+}$ penetration into the lower half of Chamber 2 prior to complete gel arrest. At $\Delta t = 30\text{ min}$, terrestrial buoyancy nearly doubles the total crosslinked shell thickness ($L_{\text{shell}} = 18.46\text{ mm}$ vs. $9.82\text{ mm}$ in $0g$) and lowers the heterogeneity index from $2.23$ to $1.50$. This divergence demonstrates that ground controls systematically overestimate bulk gel conversion and uniformity relative to microgravity hardware when denser polymer stocks overlay lower-density crosslinker solutions.
+
+\subsection{Experimental Implications and Limitations}
+Two practical constraints govern flight implementation. First, because $0.60\%\text{ w/v}$ low-acyl gellan requires heating to $\sim 50^\circ\text{C}$ for complete dissolution \cite{ambebila2019}, ground preparation must avoid premature cation contamination and verify long-term sol stability during $+4^\circ\text{C}$ cold stowage. Second, our 1D axial formulation approximates $1g$ buoyant overturning as an effective dispersion coefficient rather than resolving full 3D Navier--Stokes plumes; extending the solver to full 2D axisymmetric Brinkman--Boussinesq flow represents the immediate next step once exact Voyager MixStix inner diameters are confirmed.
+
+\section{Conclusions}
+We formulated and verified a reaction--diffusion--gelation model for sequentially triggered low-acyl gellan gum hydrogels in a three-chamber MixStix reactor. Accounting for stoichiometric calcium excess ($18.5\times$ gel point per dose) and gel-hindered ion transport reveals that sequential clamp actuation in microgravity serves as a tunable lever for engineering asymmetric core--shell scaffolds ($\text{HI}$ ranging from $2.05$ to $2.46$), whereas terrestrial $1g$ controls experience buoyancy-assisted homogenization ($\text{HI} = 1.50$ at $\Delta t = 30\text{ min}$).
+
+\section*{Data and Code Availability}
+All simulation source code, parameter tables, and figure generation scripts are openly available at \url{https://github.com  /aravg046/microgravity-gellan-hydrogels}.
+
+\begin{thebibliography}{9}
+
+\bibitem{ambebila2019}
+Ambebila, E. N., Santamar\'ia, E., Maestro, A., Guti\'errez, J. M., \& Gonz\'alez, C. (2019).
+Gellan hydrogels: Preparation, rheological characterization and application in encapsulation of curcumin.
+\emph{Food Biophysics}, 14(3), 266--277. \url{https://doi.org/10.1007/s11483-019-09568-0}
+
+\bibitem{perezcampos2012}
+P\'erez-Campos, S. J., Chavarr\'ia-Hern\'andez, N., Tecante, A., Ram\'irez-Gilly, M., \& Rodr\'iguez-Hern\'andez, A. I. (2012).
+Gelation and microstructure of dilute gellan solutions with calcium ions.
+\emph{Food Hydrocolloids}, 28(2), 291--300.
+
+\bibitem{mammarella2003}
+Mammarella, E. J., \& Rubiolo, A. C. (2003).
+Crosslinking kinetics of cation-hydrocolloid gels.
+\emph{Chemical Engineering Journal}, 94(1), 73--77.
+
+\bibitem{ligregory1974}
+Li, Y.-H., \& Gregory, S. (1974).
+Diffusion of ions in sea water and in deep-sea sediments.
+\emph{Geochimica et Cosmochimica Acta}, 38(5), 703--714.
+
+\bibitem{haynes2012}
+Haynes, W. M. (Ed.). (2012).
+\emph{CRC Handbook of Chemistry and Physics} (93rd ed.). CRC Press.
+
+\bibitem{voyager2026}
+Voyager Space. (2026).
+\emph{Microgravity Research \& Tech Payloads: MixStix Hardware Specifications}.
+\url{https://voyagertechnologies.com}
+
+\bibitem{nasa2024}
+NASA Glenn Research Center. (2024).
+\emph{What Is Microgravity?}
+\url{https://nasa.gov}
+
+\end{thebibliography}
+
+\end{document}
